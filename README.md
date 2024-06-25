@@ -2,11 +2,23 @@
 
 ## What is this repo?
 
-This repo is the official implementation of Lottery Ticket Adaptation, described in the paper [Lottery Ticket Adaptation](https://arxiv.org/abs/2406.16797).
+This repo is the official implementation of Lottery Ticket Adaptation, described in the paper [Lottery Ticket Adaptation](https://arxiv.org/abs/2406.16797). This README, the repo, and the paper are all currently in WIP/preprint status. 
 
 ## Navigating this repo
 
 Check out `rlaif` for the implementation of alignment, `lota_utils` for the implementation of mask extraction, and `mergekit` for the implementation of model merging.
+
+## A complete example
+
+First, train and save a model on the desired task by following the instructions in `rlaif`. Then, create the task vector with mergekit;
+
+`mergekit-yaml task_vector.yaml "merge_path/" --cuda`
+
+Finally, extract and save the mask. 
+
+`python save_mask.py --merge_path "merge_path/"`
+
+Now, pass this mask to the training code in `rlaif` to train LoTA models. 
 
 # Citation
 If our paper or this repository is useful for your research, you can use the following BibTeX entry:
