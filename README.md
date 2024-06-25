@@ -1,5 +1,9 @@
 # Lottery Ticket Adaptation
 
+## What is this repo?
+
+This repo is the official implementation of Lottery Ticket Adaptation, described in the paper [Lottery Ticket Adaptation](https://arxiv.org/abs/2406.16797).
+
 ## Navigating this repo
 
 Check out `rlaif` for the implementation of alignment, `lota_utils` for the implementation of mask extraction, and `mergekit` for the implementation of model merging.
