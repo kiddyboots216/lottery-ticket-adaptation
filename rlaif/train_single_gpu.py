@@ -83,6 +83,16 @@ def main(config: DictConfig):
     policy = transformers.AutoModelForCausalLM.from_pretrained(
         load_path, low_cpu_mem_usage=True, use_cache=False, torch_dtype=policy_dtype, **model_kwargs)
     disable_dropout(policy)
+    freeze_odd_layers = config.model.freeze_odd_layers
+    freeze_even_layers = config.model.freeze_even_layers
+    if freeze_odd_layers:
+        for idx, (name, param) in enumerate(policy.named_parameters()):
+            if idx % 2 == 1:
+                param.requires_grad = False
+    if freeze_even_layers:
+        for idx, (name, param) in enumerate(policy.named_parameters()):
+            if idx % 2 == 0:
+                param.requires_grad = False
     tokenizer = transformers.AutoTokenizer.from_pretrained(config.model.name_or_path)
     if tokenizer.pad_token_id is None:
         tokenizer.add_special_tokens({'pad_token': '<PAD>'})

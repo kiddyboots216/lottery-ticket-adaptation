@@ -102,7 +102,10 @@ def _apply_masked_optimizer_in_backward(
 
     @no_type_check
     def _apply_masked_optimizer_in_backward_to_param(param: torch.nn.Parameter,
-                                                     mask) -> None:
+                                                     mask,
+                                                     optimizer_kwargs_inner) -> None:
+        if not param.requires_grad:
+            return
         # view_as creates a node in autograd graph that allows us access to the
         # parameter's AccumulateGrad autograd function object. We register a
         # hook on this object to fire the optimizer when the gradient for
@@ -113,7 +116,7 @@ def _apply_masked_optimizer_in_backward(
         if param not in param_to_acc_grad_map:
             param_to_acc_grad_map[param] = param.view_as(param).grad_fn.next_functions[0][0]
 
-        optimizer = MaskedRMSprop([param], mask, **optimizer_kwargs)
+        optimizer = MaskedRMSprop([param], mask, **optimizer_kwargs_inner)
 
         if not hasattr(param, "_in_backward_optimizers"):
             param._in_backward_optimizers = []  # type: ignore[attr-defined]
@@ -124,7 +127,7 @@ def _apply_masked_optimizer_in_backward(
 
         param._in_backward_optimizers.append(optimizer)  # type: ignore[attr-defined]
         param._optimizer_classes.append(optimizer_class)  # type: ignore[attr-defined]
-        param._optimizer_kwargs.append(optimizer_kwargs)  # type: ignore[attr-defined]
+        param._optimizer_kwargs.append(optimizer_kwargs_inner)  # type: ignore[attr-defined]
 
         if not register_hook:
             return
@@ -150,12 +153,21 @@ def _apply_masked_optimizer_in_backward(
         raise ValueError(f"Invalid grad_norm_strategy: {optimizer_kwargs['grad_norm_strategy']}")
     optimizer_kwargs['max_grad_norm'] = max_grad_norm
     for param in params:
+        optimizer_kwargs_inner = optimizer_kwargs.copy()
+        # if param.shape == torch.Size([32001, 4096]) or param.shape == torch.Size([128257, 4096]):
+        #     alpha = .10
+        #     print(f"Scaling the optimizer learning rate for parameter {param.shape} by {alpha}")
+        #     optimizer_kwargs_inner['lr'] *= alpha
         if param in mask:
             print(f'Applying optimizer to parameter {param.shape}')
-            _apply_masked_optimizer_in_backward_to_param(param, mask[param])
+            _apply_masked_optimizer_in_backward_to_param(param=param, 
+                                                         mask=mask[param], 
+                                                         optimizer_kwargs_inner=optimizer_kwargs_inner)
         else:
             print(f'No mask found for parameter {param.shape}')
-            _apply_masked_optimizer_in_backward_to_param(param, None)
+            _apply_masked_optimizer_in_backward_to_param(param=param,
+                                                         mask=None,
+                                                         optimizer_kwargs_inner=optimizer_kwargs_inner)
 
 
 def _get_in_backward_optimizers(module: torch.nn.Module) -> List[torch.optim.Optimizer]:

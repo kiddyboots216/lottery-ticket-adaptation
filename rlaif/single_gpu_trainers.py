@@ -197,9 +197,9 @@ class BasicTrainer(object):
             print(f"Fast forwarding {self.config.fast_forward} batches...")
             for _ in range(self.config.fast_forward):
                 next(self.train_iterator)
-        self.eval_iterator = get_batch_iterator(**data_iterator_kwargs, split='test', n_examples=config.n_eval_examples, batch_size=config.eval_batch_size, silent=rank != 0, cache_dir=self._cache_dir)
-        self.eval_batches = list(self.eval_iterator)
-        rank0_print(f'Loaded {len(self.eval_batches)} eval batches of size {config.eval_batch_size}')
+        # self.eval_iterator = get_batch_iterator(**data_iterator_kwargs, split='test', n_examples=config.n_eval_examples, batch_size=config.eval_batch_size, silent=rank != 0, cache_dir=self._cache_dir)
+        # self.eval_batches = list(self.eval_iterator)
+        # rank0_print(f'Loaded {len(self.eval_batches)} eval batches of size {config.eval_batch_size}')
 
     def get_batch_samples(self, batch: Dict[str, torch.LongTensor]) -> Tuple[str, str]:
         """Generate samples from the policy (and reference model, if doing DPO training) for the given batch of inputs."""
@@ -391,13 +391,13 @@ class BasicTrainer(object):
                     if self.config.loss.name == 'dpo':
                         reference_text_table = wandb.Table(columns=["step", "prompt", "sample"])
 
-                for eval_batch in (tqdm.tqdm(self.eval_batches, desc='Computing eval metrics') if self.rank == 0 else self.eval_batches):
-                    local_eval_batch = slice_and_move_batch_for_device(eval_batch, self.rank, self.world_size, self.rank)
-                    with torch.no_grad():
-                        _, eval_metrics = self.get_batch_metrics(local_eval_batch, self.config.loss, train=False)
+                # for eval_batch in (tqdm.tqdm(self.eval_batches, desc='Computing eval metrics') if self.rank == 0 else self.eval_batches):
+                #     local_eval_batch = slice_and_move_batch_for_device(eval_batch, self.rank, self.world_size, self.rank)
+                #     with torch.no_grad():
+                #         _, eval_metrics = self.get_batch_metrics(local_eval_batch, self.config.loss, train=False)
 
-                    for k, v in eval_metrics.items():
-                        all_eval_metrics[k].extend(v)
+                #     for k, v in eval_metrics.items():
+                #         all_eval_metrics[k].extend(v)
 
                 if self.config.sample_during_eval:
                     if self.config.n_eval_model_samples < self.config.eval_batch_size:
@@ -605,28 +605,47 @@ class FSDPTrainer(BasicTrainer):
     
     def adjust_mask(self, mask_path, policy):
         # Skip logic if mask_path ends with "0.0_mask.pt"
+        print("Adjusting the mask")
         if mask_path.endswith("0.0_mask.pt") or mask_path.endswith("0_mask.pt"):
-            # print("Skipping adjust_mask due to mask_path ending with '0.0_mask.pt'")
+            print("Adjusting mask according to mask path ending with 0")
             self.mask = defaultdict(lambda: None)
-            return
-        self.mask = self.load_mask(mask_path)
-        # for key in self.mask.keys():
-        #     print(key)
-        adjusted_mask = {}
-        
-        # Use FSDP.summon_full_params to access full parameters
-        with FSDP.summon_full_params(policy):
-            for name, param in policy.named_parameters():
-                adjusted_name = name.replace("._checkpoint_wrapped_module", "")
-                if adjusted_name in self.mask:
-                    # if "embed_token" in adjusted_name:
-                    if param.shape == torch.Size([32001, 4096]):
-                        self.mask[adjusted_name] = torch.ones((32001, 4096))
-                    elif param.shape == torch.Size([128257, 4096]):
-                        self.mask[adjusted_name] = torch.ones((128257, 4096))
-                    adjusted_mask[param] = self.mask[adjusted_name].cpu()
-        self.mask = adjusted_mask
-        del adjusted_mask
+            # self.mask = {}
+            # with FSDP.summon_full_params(policy):
+            #     for name, param in policy.named_parameters():
+            #         if param.shape != torch.Size([4096, 32001]): # hardcoded
+            #             self.mask[param] = torch.ones_like(param).cpu()
+            #         else:
+            #             self.mask[param] = torch.zeros_like(param).cpu()
+            # with FSDP.summon_full_params(policy):
+            #     for name, param in policy.named_parameters():
+            #         if param.shape == torch.Size([32001, 4096]): # hardcoded
+            #             self.mask[param] = torch.ones_like(param).cpu()
+            #         elif param.shape == torch.Size([128257, 4096]): # hardcoded
+            #             self.mask[param] = torch.ones_like(param).cpu()
+            #         else:
+            #             self.mask[param] = torch.zeros_like(param).cpu()
+        else:
+            print("Adjusting mask according to mask path not ending with 0")
+            loading_mask = self.load_mask(mask_path)
+            # for key in self.mask.keys():
+            #     print(key)
+            # adjusted_mask = {}
+            self.mask = defaultdict(lambda: None)
+            # Use FSDP.summon_full_params to access full parameters
+            with FSDP.summon_full_params(policy):
+                for name, param in policy.named_parameters():
+                    adjusted_name = name.replace("._checkpoint_wrapped_module", "")
+                    if adjusted_name in loading_mask:
+                        if param.shape == torch.Size([32001, 4096]):
+                            self.mask[adjusted_name] = torch.ones((32001, 4096))
+                            # print("skipping lm head / embed mask")
+                        elif param.shape == torch.Size([128257, 4096]):
+                            self.mask[adjusted_name] = torch.ones((128257, 4096))
+                            # print("skipping lm head / embed mask")
+                        else:
+                            self.mask[param] = loading_mask[adjusted_name].cpu()
+            # self.mask = adjusted_mask
+            # del adjusted_mask
 
     def clip_gradient(self):
         """Clip the gradient norm of the parameters of an FSDP policy, gathering the gradients across all GPUs."""

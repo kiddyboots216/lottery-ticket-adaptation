@@ -5,6 +5,8 @@ ckpt_path: null
 grad_norm_strategy: even
 lora_rank: 8
 lora_alpha: 32
+freeze_odd_layers: false
+freeze_even_layers: false
 # random seed for batch sampling
 seed: 0
 

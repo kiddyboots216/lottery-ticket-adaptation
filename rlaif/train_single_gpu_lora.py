@@ -93,6 +93,17 @@ def main(config: DictConfig):
             target_modules=['k_proj', 'gate_proj', 'v_proj', 'up_proj', 'q_proj', 'o_proj', 'down_proj']
     )
     policy = get_peft_model(policy, peft_config)
+    
+    freeze_odd_layers = config.model.freeze_odd_layers
+    freeze_even_layers = config.model.freeze_even_layers
+    if freeze_odd_layers:
+        for idx, (name, param) in enumerate(policy.named_parameters()):
+            if idx % 2 == 1:
+                param.requires_grad = False
+    if freeze_even_layers:
+        for idx, (name, param) in enumerate(policy.named_parameters()):
+            if idx % 2 == 0:
+                param.requires_grad = False
     disable_dropout(policy)
     tokenizer = transformers.AutoTokenizer.from_pretrained(config.model.name_or_path)
     if tokenizer.pad_token_id is None:
