@@ -1,18 +1,5 @@
 #!/bin/bash
 
-#SBATCH     --nodes=1               # node count
-#SBATCH     --ntasks-per-node=1      # total number of tasks per node
-#SBATCH     --cpus-per-task=1        # cpu-cores per task (>1 if multi-threaded tasks)
-#SBATCH     --mem=80G                # total memory per node (4 GB per cpu-core is default)
-#SBATCH     --gres=gpu:1             # number of gpus per node
-#SBATCH     --time=16:59:00          # total run time limit (HH:MM:SS)
-##SBATCH    --partition=pli            # partition (queue)
-##SBATCH --account=lotteryticket
-#SBATCH    --constraint=gpu80         # constraint (e.g. gpu80)
-#SBATCH     -o Report/%j.out            # STDOUT
-#SBATCH     --mail-type=FAIL          # send email on job start, end and fail
-#SBATCH     --mail-user=ashwinee@princeton.edu      # email address to send to
-
 # replace these as necessary
 CONDA_PATH=/scratch/gpfs/$USER/envs/align
 module purge 
@@ -39,6 +26,8 @@ model="${9:-mistral7b}"
 grad_norm="${10:-10}"
 lora_rank="${11:-8}"
 lora_alpha="${12:-32}"
+freeze_odd_layers="${13:-false}"
+freeze_even_layers="${14:-false}"
 
 model_archive=${archive}
 if [[ $archive == "/scratch/gpfs/ashwinee/rlaif-cache/sharegpt4_"* ]]; then
@@ -75,7 +64,9 @@ python -u train_single_gpu_lora.py do_first_eval=False \
         grad_norm_strategy=even \
         max_grad_norm=$grad_norm \
         lora_rank=$lora_rank \
-        lora_alpha=$lora_alpha 
+        lora_alpha=$lora_alpha \
+        freeze_odd_layers=$freeze_odd_layers \
+        freeze_even_layers=$freeze_even_layers
 
 python convert_policy_to_hf_lora.py --lora_rank ${lora_rank} --model_path ${model_archive} --policy_path ${model_save_path}/epoch-$n_epochs/policy.pt --save_path ${model_save_path}/epoch-$n_epochs/
 

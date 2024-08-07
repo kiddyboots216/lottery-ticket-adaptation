@@ -94,8 +94,8 @@ def main(config: DictConfig):
     )
     policy = get_peft_model(policy, peft_config)
     
-    freeze_odd_layers = config.model.freeze_odd_layers
-    freeze_even_layers = config.model.freeze_even_layers
+    freeze_odd_layers = config.freeze_odd_layers
+    freeze_even_layers = config.freeze_even_layers
     if freeze_odd_layers:
         for idx, (name, param) in enumerate(policy.named_parameters()):
             if idx % 2 == 1:

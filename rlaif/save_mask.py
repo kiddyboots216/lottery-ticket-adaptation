@@ -4,20 +4,19 @@ import os
 from datasets import load_dataset
 import torch.nn as nn
 
-def get_random_sparsity_masks(model, sparsity_ratio):
+def get_random_sparsity_masks(model, sparsity_ratios, save_path, pruning_fn, only_update_prune=False):
     """
     This code randomly masks the weights instead of using a threshold.
     """    
     masks = {}
-    dir_name = "random_masks_mlp"
-    if not os.path.exists(dir_name):
-        os.makedirs(dir_name)
+    if not os.path.exists(save_path):
+        os.makedirs(save_path)
     for sparsity_ratio in sparsity_ratios:
         pruned_num = 0
         total_num = 0
         mask = {}
         for name, param in model.named_parameters():
-            if "weight" in name and "mlp" in name:
+            if "weight" in name and pruning_fn(name):
                 # Create a random mask with the same number of True values as specified by the sparsity_ratio
                 total_elements = param.data.numel()
                 num_true = int(total_elements * sparsity_ratio)
@@ -29,11 +28,15 @@ def get_random_sparsity_masks(model, sparsity_ratio):
                 # Update the count of masked and total parameters
                 pruned_num += mask[name].int().sum()
                 total_num += total_elements
+            elif only_update_prune:
+                # this means that we are going to set the entire param to True (meaning it will all get pruned)
+                param_mask = torch.ones_like(param.data).to(param.device)
+                mask[name] = param_mask
         masks[sparsity_ratio] = mask
         print(f"Global sparsity enforced at {sparsity_ratio:.2f} level.")
         print(f"{(100 * pruned_num / total_num):.2f}% of parameters will be pruned.")
         print(f"{(100 * (total_num - pruned_num) / total_num):.2f}% of parameters will be retained.")
-        save_mask(mask, f"{dir_name}/{sparsity_ratio}_mask.pt")
+        save_mask(mask, f"{save_path}/{sparsity_ratio}_mask.pt")
     return masks
 
 def get_global_sparsity_masks(model, sparsity_ratios, save_path, pruning_fn, only_update_prune=False, bottom_k=False):
@@ -354,40 +357,16 @@ if __name__ == "__main__":
     else:
         from argparse import ArgumentParser
         parser = ArgumentParser()
-        parser.add_argument("--merge_path", type=str, default="sharegpt4")
-        parser.add_argument("--constraint_path", type=str)
+        parser.add_argument("--merge_path", type=str, default="sharegpt4-mistral")
+        parser.add_argument("--sparsities", type=int, nargs='+', required=True, help="List of sparsity ratios as percentages (e.g., 90 for 90%)")
         args = parser.parse_args()
+        print(args)
         model = transformers.AutoModelForCausalLM.from_pretrained(
         f"/scratch/gpfs/ashwinee/alignment-durability/output-merges/{args.merge_path}",
             torch_dtype=torch.float32,
             device_map='cuda'
             )
-        sparsity_ratios = [0.9]
-        if True:
-            pruning_fn = lambda name: 'mlp' in name or 'attn' in name
-            masks = get_global_sparsity_masks(model, sparsity_ratios, f"masks/{args.merge_path}-mlpattn-only", pruning_fn, only_update_prune=True)
-        if False:
-            pruning_fn = lambda name: 'mlp' in name or 'attn' in name
-            masks = get_global_sparsity_masks(model, [0.90], f"masks/{args.merge_path}-mlpattn-only", pruning_fn, only_update_prune=True, bottom_k=True)
-        if False:
-            pruning_fn = lambda name: 'mlp' in name
-            masks = get_global_sparsity_masks(model, sparsity_ratios, f"{args.merge_path}-mlp-only", pruning_fn, only_update_prune=True)
-            pruning_fn = lambda name: 'mlp' in name or 'attn' in name
-            masks = get_global_sparsity_masks(model, sparsity_ratios, f"{args.merge_path}-mlpattn-only", pruning_fn, only_update_prune=True)
-            pruning_fn = lambda name: 'mlp' in name
-            masks = get_global_sparsity_masks(model, sparsity_ratios, f"{args.merge_path}-mlp", pruning_fn, only_update_prune=False)
-            pruning_fn = lambda name: 'mlp' in name or 'attn' in name
-            masks = get_global_sparsity_masks(model, sparsity_ratios, f"{args.merge_path}-mlpattn", pruning_fn, only_update_prune=False)
-            # invert_mask(f"{args.merge_path}/0.99_mask.pt")
-        if False:
-            constraint_mask_path = args.constraint_path
-            pruning_fn = lambda name: 'mlp' in name
-            masks = get_constrained_mask(model, sparsity_ratios, f"{args.merge_path}-mlp-only-constrained", constraint_mask_path, pruning_fn, only_update_prune=True)
-            pruning_fn = lambda name: 'mlp' in name or 'attn' in name
-            masks = get_constrained_mask(model, sparsity_ratios, f"{args.merge_path}-mlpattn-only-constrained", constraint_mask_path, pruning_fn, only_update_prune=True)
-            pruning_fn = lambda name: 'mlp' in name
-            masks = get_constrained_mask(model, sparsity_ratios, f"{args.merge_path}-mlp-constrained", constraint_mask_path, pruning_fn, only_update_prune=False)
-            pruning_fn = lambda name: 'mlp' in name or 'attn' in name
-            masks = get_constrained_mask(model, sparsity_ratios, f"{args.merge_path}-mlpattn-constrained", constraint_mask_path, pruning_fn, only_update_prune=False)
-        # masks = get_random_sparsity_masks(model, sparsity_ratios)
-    
+        sparsity_ratios = [sparsity / 100 for sparsity in args.sparsities]
+        print(check_sparsity(model))
+        pruning_fn = lambda name: 'mlp' in name or 'attn' in name
+        masks = get_global_sparsity_masks(model, sparsity_ratios, f"masks/{args.merge_path}-mlpattn-only", pruning_fn, only_update_prune=True)

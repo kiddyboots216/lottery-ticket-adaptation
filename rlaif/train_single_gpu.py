@@ -83,8 +83,8 @@ def main(config: DictConfig):
     policy = transformers.AutoModelForCausalLM.from_pretrained(
         load_path, low_cpu_mem_usage=True, use_cache=False, torch_dtype=policy_dtype, **model_kwargs)
     disable_dropout(policy)
-    freeze_odd_layers = config.model.freeze_odd_layers
-    freeze_even_layers = config.model.freeze_even_layers
+    freeze_odd_layers = config.freeze_odd_layers
+    freeze_even_layers = config.freeze_even_layers
     if freeze_odd_layers:
         for idx, (name, param) in enumerate(policy.named_parameters()):
             if idx % 2 == 1:
@@ -107,33 +107,6 @@ def main(config: DictConfig):
         disable_dropout(reference_model)
     else:
         reference_model = None
-    import glob
-
-    # if config.local_run_dir is not None:
-    #     step_dirs = glob.glob(os.path.join(config.local_run_dir, 'step-*'))
-    #     epoch_dirs = glob.glob(os.path.join(config.local_run_dir, 'epoch-*'))
-    #     dirs_to_try = sorted(step_dirs + epoch_dirs, key=os.path.getctime, reverse=True)
-        
-    #     for dir in dirs_to_try:
-    #         try:
-    #             policy_path = os.path.join(dir, 'policy.pt')
-    #             if os.path.isfile(policy_path):
-    #                 state_dict = torch.load(policy_path, map_location='cpu')
-    #                 policy.load_state_dict(state_dict['state'])
-    #                 print(f'Loading pre-trained weights from {dir}')
-    #                 config.fast_forward = int(state_dict["step_idx"] / config.batch_size)
-    #                 config.ckpt_path = dir
-    #                 break  # Exit the loop if successfully loaded
-    #             else:
-    #                 raise FileNotFoundError(f"No policy.pt file found in {dir}")
-    #         except (FileNotFoundError, RuntimeError) as e:
-    #             print(f"Failed to load from {dir}: {e}")
-    #             continue  # Try the next directory
-        
-    #     if not config.ckpt_path:
-    #         config.fast_forward = 0
-    #         print("No valid checkpoint found, starting from scratch.")
-
     if 'FSDP' in config.trainer:
         world_size = torch.cuda.device_count()
         print('starting', world_size, 'processes for FSDP training')
