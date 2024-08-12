@@ -8,6 +8,18 @@ This repo is the official implementation of Lottery Ticket Adaptation, described
 
 We implement datasets for a range of tasks (see the `tasks` folder for a full overview) and a trainer that uses a single GPU to finetune models up to Llama-3-8B in size. This is made possible by fusing the optimizer into the backward pass in `apply_mask_in_backward`. 
 
+### Setup
+
+## Step 0: Create environment and set paths
+    cd rlaif
+    conda create -p $CONDA_ENV_PATH align
+    conda activate $CONDA_ENV_PATH/align
+    pip install -r requirements.txt
+    cd ../mergekit
+    pip install -e .
+## Step 1: Download ShareGPT4 Data
+    wget -P ${PROJECT_CACHE}/sharegpt_data https://huggingface.co/datasets/TRI-ML/dpo-rlaif-data/resolve/main/sharegpt1turn_df1.0_ff0_gpt4_completions.json
+
 ### Running training
 
 ```
