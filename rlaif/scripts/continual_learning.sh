@@ -12,13 +12,13 @@ sparsity_ratio="0.0"
 batch_size="32"
 model="mistral7b"
 grad_norm="1"
-bash scripts/train_single_gpu.sh "$archive" "$lr" "$dataset_name" "$data_fraction" "$n_epochs" "$mask_dir" "$sparsity_ratio" "$batch_size" "$model" "$grad_norm"
+# bash scripts/train_single_gpu.sh "$archive" "$lr" "$dataset_name" "$data_fraction" "$n_epochs" "$mask_dir" "$sparsity_ratio" "$batch_size" "$model" "$grad_norm"
 # then train that same model on commonsense
 # you would need to change the archive path to the path of the model you just trained
 archive="/scratch/gpfs/ashwinee/rlaif-cache/gsm8k_mistralai/Mistral-7B-v0.1_1_5e-7_32_1_none_0.0/epoch-3/"
 dataset_name="commonsense"
 n_epochs="1"
-bash scripts/train_single_gpu.sh "$archive" "$lr" "$dataset_name" "$data_fraction" "$n_epochs" "$mask_dir" "$sparsity_ratio" "$batch_size" "$model" "$grad_norm"
+# bash scripts/train_single_gpu.sh "$archive" "$lr" "$dataset_name" "$data_fraction" "$n_epochs" "$mask_dir" "$sparsity_ratio" "$batch_size" "$model" "$grad_norm"
 # now eval the model on commonsense and gsm8k
 # similarly, set the model save path here to the path of the model you just trained
 model_save_path="/scratch/gpfs/ashwinee/rlaif-cache//commonsense_/scratch/gpfs/ashwinee/rlaif-cache//gsm8k_mistralai/Mistral-7B-v0.1_1_5e-7_32_1_none_0.0/epoch-3/_1_5e-7_32_1_none_0.0/epoch-1/"

@@ -1,0 +1,17 @@
+*.out
+*.pt
+*.safetensors
+*.json
+*.jsonl
+*.csv
+*.txt
+/masks/
+/output-merges/
+/param_masks/
+/param_masks_sharegpt4/
+/sparse-models/
+/rlaif/outputs/
+/rlaif/output/
+/mistral/finetuned_models/
+/mistral/safety_evaluation/question_output
+*.pyc
