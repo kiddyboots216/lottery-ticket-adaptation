@@ -1,0 +1,7 @@
+base_model: /scratch/gpfs/ashwinee/rlaif-cache/models--mistralai--Mistral-7B-v0.1/snapshots/26bca36bde8333b5d7f72e9ed20ccda6a618af24
+dtype: float32
+merge_method: task_arithmetic
+models:
+- model: /scratch/gpfs/ashwinee/rlaif-cache/commonsense_mistralai/Mistral-7B-v0.1_1_1e-6_32_1_none_0.0/epoch-1
+  parameters:
+    weight: 1.0
