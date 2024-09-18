@@ -6,9 +6,11 @@ This repo is the official implementation of Lottery Ticket Adaptation, described
 
 ## Navigating this repo
 
-Check out `rlaif` for the implementation of alignment, `lota_utils` for the implementation of mask extraction, and `mergekit` for the implementation of model merging.
+Check out `rlaif` for the implementation of alignment, and `mergekit` for the implementation of model merging.
 
 ## A complete example
+
+Please check out https://github.com/kiddyboots216/lottery-ticket-adaptation/blob/main/rlaif/scripts/continual_learning.sh#L66 for a complete example with LoTA, but here is a high-level overview.
 
 First, train and save a model on the desired task by following the instructions in `rlaif`. Then, create the task vector with mergekit;
 
