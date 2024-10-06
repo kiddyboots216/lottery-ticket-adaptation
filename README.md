@@ -6,9 +6,13 @@ This repo is the official implementation of Lottery Ticket Adaptation, described
 
 ## Navigating this repo
 
-Check out `rlaif` for the implementation of alignment, `lota_utils` for the implementation of mask extraction, and `mergekit` for the implementation of model merging.
+Check out `rlaif` for the implementation of alignment, and `mergekit` for the implementation of model merging.
 
 ## A complete example
+
+Please check out the script in "rlaif/scripts/continual_learning.sh" for a complete example with continual learning. We train models with FFT and LoRA on two tasks sequentially, showing that they forget completely. We then update disjoint sets of parameters for Task A and B, showing that this can mitigate forgetting with LoRA, but that this negatively impacts performance because the model's capacity is reduced. We finally show that LoTA, which intelligently chooses disjoint sets of parameters to update, can further mitigate forgetting without compromising performance.
+
+Again, check out line 66 of the above script https://github.com/kiddyboots216/lottery-ticket-adaptation/blob/main/rlaif/scripts/continual_learning.sh#L66 for a complete example with LoTA, but here is a high-level overview.
 
 First, train and save a model on the desired task by following the instructions in `rlaif`. Then, create the task vector with mergekit;
 
