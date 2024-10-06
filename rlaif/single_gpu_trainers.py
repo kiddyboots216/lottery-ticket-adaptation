@@ -21,7 +21,6 @@ import tensor_parallel as tp
 import contextlib
 
 from preference_datasets import get_batch_iterator, get_dataset
-# from filter_dataset_2 import get_batch_iterator, get_dataset
 from utils import (
     slice_and_move_batch_for_device,
     formatted_dict,
@@ -606,30 +605,12 @@ class FSDPTrainer(BasicTrainer):
     def adjust_mask(self, mask_path, policy):
         # Skip logic if mask_path ends with "0.0_mask.pt"
         print("Adjusting the mask")
-        if mask_path.endswith("0.0_mask.pt") or mask_path.endswith("0_mask.pt"):
+        if mask_path is None or mask_path.endswith("0.0_mask.pt") or mask_path.endswith("0_mask.pt"):
             print("Adjusting mask according to mask path ending with 0")
             self.mask = defaultdict(lambda: None)
-            # self.mask = {}
-            # with FSDP.summon_full_params(policy):
-            #     for name, param in policy.named_parameters():
-            #         if param.shape != torch.Size([4096, 32001]): # hardcoded
-            #             self.mask[param] = torch.ones_like(param).cpu()
-            #         else:
-            #             self.mask[param] = torch.zeros_like(param).cpu()
-            # with FSDP.summon_full_params(policy):
-            #     for name, param in policy.named_parameters():
-            #         if param.shape == torch.Size([32001, 4096]): # hardcoded
-            #             self.mask[param] = torch.ones_like(param).cpu()
-            #         elif param.shape == torch.Size([128257, 4096]): # hardcoded
-            #             self.mask[param] = torch.ones_like(param).cpu()
-            #         else:
-            #             self.mask[param] = torch.zeros_like(param).cpu()
         else:
             print("Adjusting mask according to mask path not ending with 0")
             loading_mask = self.load_mask(mask_path)
-            # for key in self.mask.keys():
-            #     print(key)
-            # adjusted_mask = {}
             self.mask = defaultdict(lambda: None)
             # Use FSDP.summon_full_params to access full parameters
             with FSDP.summon_full_params(policy):
@@ -637,15 +618,16 @@ class FSDPTrainer(BasicTrainer):
                     adjusted_name = name.replace("._checkpoint_wrapped_module", "")
                     if adjusted_name in loading_mask:
                         if param.shape == torch.Size([32001, 4096]):
-                            self.mask[adjusted_name] = torch.ones((32001, 4096))
+                            self.mask[param] = torch.ones((32001, 4096))
                             # print("skipping lm head / embed mask")
                         elif param.shape == torch.Size([128257, 4096]):
-                            self.mask[adjusted_name] = torch.ones((128257, 4096))
+                            self.mask[param] = torch.ones((128257, 4096))
                             # print("skipping lm head / embed mask")
                         else:
-                            self.mask[param] = loading_mask[adjusted_name].cpu()
-            # self.mask = adjusted_mask
-            # del adjusted_mask
+                            if self.config.flip_mask:
+                                self.mask[param] = torch.logical_not(loading_mask[adjusted_name].cpu())
+                            else:
+                                self.mask[param] = loading_mask[adjusted_name].cpu()
 
     def clip_gradient(self):
         """Clip the gradient norm of the parameters of an FSDP policy, gathering the gradients across all GPUs."""
